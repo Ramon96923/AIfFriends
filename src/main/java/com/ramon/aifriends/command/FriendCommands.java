@@ -98,9 +98,9 @@ public final class FriendCommands {
 	private static int help(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
 		ServerPlayer p = player(ctx);
 		FriendManager.info(p, "/friend spawn <name> [count] [skin username]");
-		FriendManager.info(p, "/friend <name|squad|all> <follow|come|stay|guard|wander|attack|mine|farm|deliver|passive|aggressive|status|drop|dismiss>");
+		FriendManager.info(p, "/friend <name|squad|all> <follow|come|stay|guard|wander|attack|mine|wood|stone|food|farm|craft|deliver|passive|aggressive|status|drop|dismiss>");
 		FriendManager.info(p, "/friend build <who> wall [length] [height] | house | farm [count]");
-		FriendManager.info(p, "Jobs: mine, farm, deliver (bring you their backpack). Give them blocks/seeds to build & plant.");
+		FriendManager.info(p, "Jobs: mine, wood, stone, food, farm, craft, deliver. They craft their own tools from wood/cobble/iron/diamonds in their backpack.");
 		FriendManager.info(p, "/friend give <who>  - gives them the item in your hand");
 		FriendManager.info(p, "/friend skin <who> <username>");
 		FriendManager.info(p, "/friend list");

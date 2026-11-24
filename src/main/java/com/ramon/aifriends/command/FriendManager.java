@@ -30,7 +30,7 @@ public final class FriendManager {
 
 	public static final Set<String> ALL_WORDS = Set.of("all", "everyone", "everybody", "squad", "friends", "army", "guys", "team", "yall", "y'all", "troops", "boys", "gang");
 
-	public static final List<String> ORDERS = List.of("follow", "come", "stay", "guard", "wander", "attack", "mine", "farm", "deliver", "passive", "aggressive", "status", "drop", "dismiss");
+	public static final List<String> ORDERS = List.of("follow", "come", "stay", "guard", "wander", "attack", "mine", "wood", "stone", "food", "farm", "craft", "deliver", "passive", "aggressive", "status", "drop", "dismiss");
 
 	public static final List<String> STRUCTURES = List.of("wall", "house", "farm");
 
@@ -119,6 +119,28 @@ public final class FriendManager {
 			case "mine" -> {
 				friends.forEach(f -> f.setMode(FriendEntity.Mode.MINE));
 				replies(owner, friends, "mine");
+			}
+			case "wood" -> {
+				friends.forEach(f -> f.setMode(FriendEntity.Mode.GATHER_WOOD));
+				replies(owner, friends, "wood");
+			}
+			case "stone" -> {
+				friends.forEach(f -> f.setMode(FriendEntity.Mode.GATHER_STONE));
+				replies(owner, friends, "stone");
+			}
+			case "food" -> {
+				friends.forEach(f -> f.setMode(FriendEntity.Mode.GATHER_FOOD));
+				replies(owner, friends, "food");
+			}
+			case "craft" -> {
+				int shownCraft = 0;
+				for (FriendEntity f : friends) {
+					String made = f.craftNow();
+					if (shownCraft < 3) {
+						if (made != null) f.sayJob("crafted", made); else f.say("craft_nothing");
+						shownCraft++;
+					}
+				}
 			}
 			case "farm" -> {
 				friends.forEach(f -> f.startFarming(owner.blockPosition(), 10));

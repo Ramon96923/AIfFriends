@@ -54,6 +54,16 @@ public final class FriendChat {
 			Map.entry("deliver_nothing", List.of("My backpack's empty.", "I don't have anything for you yet.")),
 			Map.entry("pack_full", List.of("My backpack is full! Bringing it to you.", "Can't carry any more, coming back.")),
 			Map.entry("item_pack", List.of("Into the backpack it goes.", "I'll hold onto that.", "Got it, thanks!")),
+			Map.entry("wood", List.of("Timber!", "I'll chop some trees.", "Lumberjack mode on.", "Going to get wood!")),
+			Map.entry("stone", List.of("Off to the quarry!", "I'll get some cobble.", "Rocks, here I come.")),
+			Map.entry("food", List.of("Going hunting!", "I'll bring back dinner.", "Time to find some food.")),
+			Map.entry("no_trees", List.of("There aren't any trees around here.", "No trees nearby, boss.", "Can't find any wood here.")),
+			Map.entry("no_stone", List.of("I can't find any stone I can reach.", "No exposed stone around here.")),
+			Map.entry("no_animals", List.of("No animals to hunt nearby. I'm leaving at least two of each so they can breed.", "Nothing to hunt around here.")),
+			Map.entry("need_pickaxe_stone", List.of("I need a pickaxe for stone. Get me some wood and I'll make one!", "No pickaxe! Give me one or let me chop wood first.")),
+			Map.entry("crafted", List.of("Crafted a {job}!", "Made myself a {job}.", "Check it out, a new {job}!", "Upgraded to a {job}.")),
+			Map.entry("craft_nothing", List.of("I can't make anything better right now.", "Not enough materials for an upgrade.", "My tools are as good as I can make them.")),
+			Map.entry("eat", List.of("*munch munch*", "That hit the spot.", "Snack break!", "Yum.")),
 			Map.entry("teleport", List.of("Wait up!", "Hey, don't leave me behind!", "Caught up!"))
 	);
 

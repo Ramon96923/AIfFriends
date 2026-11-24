@@ -57,7 +57,7 @@ public class FriendEntity extends PathfinderMob {
 	/** Last time (game time) any friend of a given owner said something unprompted, so armies don't spam chat. */
 	private static final Map<UUID, Long> LAST_CHATTER = new HashMap<>();
 
-	public enum Mode { FOLLOW, STAY, GUARD, WANDER, MINE, BUILD, FARM }
+	public enum Mode { FOLLOW, STAY, GUARD, WANDER, MINE, BUILD, FARM, GATHER_WOOD, GATHER_STONE, GATHER_FOOD }
 
 	public static final int PACK_SLOTS = 27;
 
@@ -157,7 +157,8 @@ public class FriendEntity extends PathfinderMob {
 	}
 
 	public boolean isWorking() {
-		return mode == Mode.MINE || mode == Mode.BUILD || mode == Mode.FARM;
+		return mode == Mode.MINE || mode == Mode.BUILD || mode == Mode.FARM
+				|| mode == Mode.GATHER_WOOD || mode == Mode.GATHER_STONE || mode == Mode.GATHER_FOOD;
 	}
 
 	public boolean isAggressive() {
@@ -207,6 +208,13 @@ public class FriendEntity extends PathfinderMob {
 
 	public void deliver() {
 		this.delivering = true;
+	}
+
+	/** Crafts any tool upgrades it can right now. Returns what it made, or null. */
+	public @Nullable String craftNow() {
+		String made = FriendGather.craftTools(this);
+		FriendGather.chooseTool(this);
+		return made;
 	}
 
 	public void cleanup() {
@@ -436,6 +444,10 @@ public class FriendEntity extends PathfinderMob {
 
 		if (this.tickCount % 10 == 0) {
 			pickTarget(owner);
+			if (isWorking() && this.level() instanceof ServerLevel sl) FriendGather.vacuum(this, sl);
+		}
+		if (this.tickCount % 20 == 5 && this.level() instanceof ServerLevel sl) {
+			FriendGather.upkeep(this, sl);
 		}
 
 		// Idle chatter.
@@ -712,6 +724,9 @@ public class FriendEntity extends PathfinderMob {
 				case MINE -> FriendWork.tickMine(friend, level);
 				case BUILD -> FriendWork.tickBuild(friend, level);
 				case FARM -> FriendWork.tickFarm(friend, level);
+				case GATHER_WOOD -> FriendGather.tickWood(friend, level);
+				case GATHER_STONE -> FriendGather.tickStone(friend, level);
+				case GATHER_FOOD -> FriendGather.tickFood(friend, level);
 				default -> { }
 			}
 		}

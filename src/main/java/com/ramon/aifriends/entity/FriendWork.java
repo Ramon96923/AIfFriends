@@ -93,7 +93,7 @@ final class FriendWork {
 	}
 
 	/** Works on breaking a block. Returns true once it's broken. Drops go into the friend's backpack. */
-	private static boolean breakBlock(FriendEntity f, ServerLevel level, BlockPos pos, boolean keepDrops) {
+	static boolean breakBlock(FriendEntity f, ServerLevel level, BlockPos pos, boolean keepDrops) {
 		BlockState state = level.getBlockState(pos);
 		if (state.isAir()) {
 			stopBreaking(f);
@@ -127,17 +127,17 @@ final class FriendWork {
 		return true;
 	}
 
-	private static boolean near(FriendEntity f, BlockPos pos, double reach) {
+	static boolean near(FriendEntity f, BlockPos pos, double reach) {
 		return f.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= reach * reach;
 	}
 
-	private static void walkTo(FriendEntity f, BlockPos pos) {
+	static void walkTo(FriendEntity f, BlockPos pos) {
 		if (f.navRecalc-- > 0 && !f.getNavigation().isDone()) return;
 		f.navRecalc = 15;
 		f.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 1.0);
 	}
 
-	private static void sayLimited(FriendEntity f, String event) {
+	static void sayLimited(FriendEntity f, String event) {
 		if (f.tickCount - f.lastNeedTick > 600) {
 			f.lastNeedTick = f.tickCount;
 			f.say(event);
@@ -227,7 +227,7 @@ final class FriendWork {
 		tunnelTowards(f, level, target);
 	}
 
-	private static void giveUp(FriendEntity f, BlockPos target) {
+	static void giveUp(FriendEntity f, BlockPos target) {
 		f.badBlocks.add(target.immutable());
 		CLAIMS.remove(target);
 		stopBreaking(f);

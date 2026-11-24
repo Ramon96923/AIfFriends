@@ -3,8 +3,11 @@ package com.ramon.aifriends.command;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import com.ramon.aifriends.entity.FriendEntity;
+import com.ramon.aifriends.entity.FriendTalk;
 
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.PlayerChatMessage;
@@ -36,12 +39,8 @@ public final class FriendChatListener {
 			Map.entry("dismiss", "dismiss"), Map.entry("leave", "dismiss"), Map.entry("dismissed", "dismiss")
 	);
 
-	private static final Map<String, String> TALK_WORDS = Map.ofEntries(
-			Map.entry("hi", "hello"), Map.entry("hello", "hello"), Map.entry("hey", "hello"), Map.entry("yo", "hello"), Map.entry("sup", "hello"), Map.entry("howdy", "hello"),
-			Map.entry("thanks", "thanks"), Map.entry("thank", "thanks"), Map.entry("thx", "thanks"), Map.entry("ty", "thanks"),
-			Map.entry("good", "praise"), Map.entry("nice", "praise"), Map.entry("great", "praise"), Map.entry("gg", "praise"), Map.entry("awesome", "praise"), Map.entry("goat", "praise"),
-			Map.entry("how", "status")
-	);
+	private static final Set<String> QUESTION_WORDS = Set.of("what", "whats", "how", "hows", "why", "who", "where", "when", "do", "does", "did",
+			"are", "is", "can", "could", "would", "will", "have", "wanna", "u", "you", "r");
 
 	public static void onChat(PlayerChatMessage message, ServerPlayer sender, ChatType.Bound bound) {
 		String text = message.signedContent();
@@ -75,7 +74,22 @@ public final class FriendChatListener {
 				}
 			}
 		}
-		if (who == null) return;
+		long now = sender.level().getGameTime();
+		String cleaned = String.join(" ", words);
+		if (who == null) {
+			// Not addressed by name: maybe it's an answer to something a friend just asked.
+			UUID waiting = FriendTalk.waitingFriend(sender.getUUID(), now);
+			if (waiting == null) return;
+			for (FriendEntity f : mine) {
+				if (f.getUUID().equals(waiting)) {
+					String answer = FriendTalk.answer(sender.getUUID(), cleaned, f.getRandom());
+					if (answer != null) f.sayRaw(answer);
+					break;
+				}
+			}
+			return;
+		}
+		boolean question = text.contains("?") || QUESTION_WORDS.contains(words[whoIndex == 0 && words.length > 1 ? 1 : 0]);
 
 		// Building: "squad build a wall 20 5", "everyone build 3 farms", "bob build house".
 		boolean wantsBuild = false;
@@ -100,18 +114,43 @@ public final class FriendChatListener {
 
 		// Look for an order keyword anywhere in the message (excluding the name itself).
 		String order = null;
-		String talk = null;
 		for (int i = 0; i < words.length; i++) {
 			if (i == whoIndex) continue;
 			if (order == null && ORDER_WORDS.containsKey(words[i])) order = ORDER_WORDS.get(words[i]);
-			if (talk == null && TALK_WORDS.containsKey(words[i])) talk = TALK_WORDS.get(words[i]);
 		}
-		if (order != null) {
+		// Questions like "bob do you like mining?" are small talk, not orders.
+		boolean smallTalk = FriendTalk.matchesAnything(cleaned);
+		if (order != null && !(question && smallTalk)) {
 			FriendManager.order(sender, who, order);
 			return;
 		}
 		List<FriendEntity> targets = FriendManager.select(sender, who);
 		if (targets.isEmpty()) return;
-		FriendManager.replies(sender, targets, talk != null ? talk : "confused");
+
+		// An answer to a question this friend asked?
+		UUID waiting = FriendTalk.waitingFriend(sender.getUUID(), now);
+		if (!smallTalk && waiting != null) {
+			for (FriendEntity f : targets) {
+				if (f.getUUID().equals(waiting)) {
+					String answer = FriendTalk.answer(sender.getUUID(), cleaned, f.getRandom());
+					if (answer != null) {
+						f.sayRaw(answer);
+						return;
+					}
+				}
+			}
+		}
+
+		int replied = 0;
+		for (FriendEntity f : targets) {
+			if (replied >= 2) break;
+			String line = FriendTalk.reply(f, cleaned, f.getRandom(), sender.getName().getString(), now);
+			if (line == null) {
+				f.say("confused");
+			} else {
+				f.sayRaw(line);
+			}
+			replied++;
+		}
 	}
 }

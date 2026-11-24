@@ -373,6 +373,14 @@ public class FriendEntity extends PathfinderMob {
 				.append(Component.literal(line).withStyle(ChatFormatting.WHITE)));
 	}
 
+	/** Says an exact line in chat. */
+	public void sayRaw(String line) {
+		ServerPlayer owner = this.getOwner();
+		if (owner == null) return;
+		owner.sendSystemMessage(Component.literal("<" + this.getFriendName() + "> ").withStyle(ChatFormatting.AQUA)
+				.append(Component.literal(line).withStyle(ChatFormatting.WHITE)));
+	}
+
 	public void sayJob(String event, String job) {
 		ServerPlayer owner = this.getOwner();
 		if (owner == null) return;
@@ -433,7 +441,14 @@ public class FriendEntity extends PathfinderMob {
 		// Idle chatter.
 		if (owner != null && this.getTarget() == null && --idleChatTimer <= 0) {
 			idleChatTimer = 3600 + this.getRandom().nextInt(6000);
-			if (this.distanceToSqr(owner) < 16 * 16) chatter("idle", 1200);
+			if (this.distanceToSqr(owner) < 16 * 16 && ownerId != null) {
+				long now = this.level().getGameTime();
+				Long last = LAST_CHATTER.get(ownerId);
+				if (last == null || now - last >= 1200 || now < last) {
+					LAST_CHATTER.put(ownerId, now);
+					this.sayRaw(FriendTalk.opener(this, this.getRandom(), owner.getName().getString(), now));
+				}
+			}
 		}
 	}
 

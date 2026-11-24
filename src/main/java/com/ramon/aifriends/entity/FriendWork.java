@@ -108,7 +108,7 @@ final class FriendWork {
 		if (needed < 0) return false;
 		f.breakProgress++;
 		f.getLookControl().setLookAt(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
-		if (f.breakProgress % 5 == 1) f.swing(InteractionHand.MAIN_HAND);
+		if (f.breakProgress % 5 == 1) f.swingForAttack(InteractionHand.MAIN_HAND);
 		level.destroyBlockProgress(f.getId(), pos, Math.min(9, f.breakProgress * 10 / needed));
 		if (f.breakProgress < needed) return false;
 
@@ -319,7 +319,7 @@ final class FriendWork {
 		if (performTask(f, level, task)) {
 			task.done = true;
 			f.buildTask = null;
-			f.swing(InteractionHand.MAIN_HAND);
+			f.swingForAttack(InteractionHand.MAIN_HAND);
 		}
 	}
 
@@ -469,7 +469,7 @@ final class FriendWork {
 				level.setBlock(target, ((BlockItem) seed.getItem()).getBlock().defaultBlockState(), Block.UPDATE_ALL);
 			}
 		}
-		f.swing(InteractionHand.MAIN_HAND);
+		f.swingForAttack(InteractionHand.MAIN_HAND);
 		CLAIMS.remove(target);
 		f.workTarget = null;
 	}

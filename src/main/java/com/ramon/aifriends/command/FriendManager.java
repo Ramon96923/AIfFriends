@@ -30,7 +30,7 @@ public final class FriendManager {
 
 	public static final Set<String> ALL_WORDS = Set.of("all", "everyone", "everybody", "squad", "friends", "army", "guys", "team", "yall", "y'all", "troops", "boys", "gang");
 
-	public static final List<String> ORDERS = List.of("follow", "come", "stay", "guard", "wander", "attack", "mine", "wood", "stone", "food", "farm", "craft", "deliver", "passive", "aggressive", "status", "drop", "dismiss");
+	public static final List<String> ORDERS = List.of("follow", "come", "stay", "guard", "wander", "attack", "mine", "wood", "stone", "food", "farm", "craft", "deliver", "brawl", "deathmatch", "ceasefire", "passive", "aggressive", "status", "drop", "dismiss");
 
 	public static final List<String> STRUCTURES = List.of("wall", "house", "farm");
 
@@ -150,6 +150,22 @@ public final class FriendManager {
 				friends.forEach(FriendEntity::deliver);
 				replies(owner, friends, "come");
 			}
+			case "brawl", "deathmatch" -> {
+				if (friends.size() < 2) {
+					info(owner, "You need at least 2 friends to fight each other.");
+					return 0;
+				}
+				boolean lethal = order.equals("deathmatch");
+				int team = 1001;
+				for (FriendEntity f : friends) f.joinBrawl(team++, lethal);
+				replies(owner, friends, "brawl");
+				info(owner, lethal ? "Deathmatch! Fight to the death - they can really die." : "Brawl! Losers tap out instead of dying. Last one standing wins.");
+			}
+			case "ceasefire" -> {
+				friends.forEach(FriendEntity::leaveBrawl);
+				FriendEntity.endBrawl(owner.getUUID());
+				replies(owner, friends, "ceasefire");
+			}
 			case "passive" -> {
 				friends.forEach(f -> f.setAggressive(false));
 				replies(owner, friends, "passive");
@@ -237,6 +253,23 @@ public final class FriendManager {
 		info(owner, friends.size() + " friend(s) building a " + label + " (" + job.size() + " blocks)"
 				+ (owner.isCreative() ? "." : ". They'll use blocks from their backpacks - give them some!"));
 		return friends.size();
+	}
+
+	/** Two squads fight each other. */
+	public static int war(ServerPlayer owner, String teamA, String teamB, boolean lethal) {
+		List<FriendEntity> a = select(owner, teamA);
+		List<FriendEntity> b = select(owner, teamB);
+		b.removeAll(a);
+		if (a.isEmpty() || b.isEmpty()) {
+			info(owner, "Both sides need friends! Usage: /friend war <squadA> <squadB> [lethal]");
+			return 0;
+		}
+		a.forEach(f -> f.joinBrawl(1, lethal));
+		b.forEach(f -> f.joinBrawl(2, lethal));
+		a.get(0).say("war");
+		b.get(0).say("war");
+		info(owner, teamA + " (" + a.size() + ") vs " + teamB + " (" + b.size() + ")" + (lethal ? " - to the death!" : " - losers tap out."));
+		return a.size() + b.size();
 	}
 
 	/** Gives the player's held item to the selected friends (split one each if several, whole stack if one). */

@@ -64,6 +64,11 @@ public final class FriendChat {
 			Map.entry("crafted", List.of("Crafted a {job}!", "Made myself a {job}.", "Check it out, a new {job}!", "Upgraded to a {job}.")),
 			Map.entry("craft_nothing", List.of("I can't make anything better right now.", "Not enough materials for an upgrade.", "My tools are as good as I can make them.")),
 			Map.entry("eat", List.of("*munch munch*", "That hit the spot.", "Snack break!", "Yum.")),
+			Map.entry("brawl", List.of("Sorry buddy, it's every friend for themselves!", "Fight me!", "Nothing personal!", "Let's settle this!", "You're going down!")),
+			Map.entry("war", List.of("For my team!", "Charge!", "We've got this, team!", "Let's show them!")),
+			Map.entry("tap_out", List.of("Okay okay, I give up!", "I yield! I yield!", "Ow, you win this one.", "Tapping out!")),
+			Map.entry("victory", List.of("I'm the champion!", "Undefeated!", "Who's next?!", "GG everyone!", "Victory!")),
+			Map.entry("ceasefire", List.of("Truce!", "Okay, we're cool.", "Good fight, everyone.", "Friends again!")),
 			Map.entry("teleport", List.of("Wait up!", "Hey, don't leave me behind!", "Caught up!"))
 	);
 

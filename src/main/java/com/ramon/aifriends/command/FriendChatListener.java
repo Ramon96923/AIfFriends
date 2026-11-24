@@ -95,6 +95,24 @@ public final class FriendChatListener {
 		}
 		boolean question = text.contains("?") || QUESTION_WORDS.contains(words[whoIndex == 0 && words.length > 1 ? 1 : 0]);
 
+		// Fights: "everyone fight each other", "bob vs jim", "red vs blue to the death", "everyone stop fighting".
+		boolean lethalWords = cleaned.contains("deathmatch") || cleaned.contains("to the death") || cleaned.contains("for real");
+		for (int i = 1; i < words.length - 1; i++) {
+			if (words[i].equals("vs") || words[i].equals("versus")) {
+				FriendManager.war(sender, words[i - 1], words[i + 1], lethalWords);
+				return;
+			}
+		}
+		if (cleaned.contains("each other") || cleaned.contains("eachother") || cleaned.contains("one another") || cleaned.contains("brawl")
+				|| cleaned.contains("battle royale") || cleaned.contains("free for all") || cleaned.contains("deathmatch")) {
+			FriendManager.order(sender, who, lethalWords ? "deathmatch" : "brawl");
+			return;
+		}
+		if (cleaned.contains("stop fighting") || cleaned.contains("ceasefire") || cleaned.contains("cease fire") || cleaned.contains("truce")) {
+			FriendManager.order(sender, who, "ceasefire");
+			return;
+		}
+
 		// Building: "squad build a wall 20 5", "everyone build 3 farms", "bob build house".
 		boolean wantsBuild = false;
 		String structure = null;

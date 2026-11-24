@@ -65,6 +65,12 @@ public final class FriendCommands {
 										.then(Commands.argument("count", IntegerArgumentType.integer(1, FriendManager.MAX_FARMS))
 												.executes(ctx -> FriendManager.build(player(ctx), StringArgumentType.getString(ctx, "who"), "farm",
 														IntegerArgumentType.getInteger(ctx, "count"), 0))))))
+				.then(Commands.literal("war")
+						.then(Commands.argument("teamA", StringArgumentType.word()).suggests(WHO)
+								.then(Commands.argument("teamB", StringArgumentType.word()).suggests(WHO)
+										.executes(ctx -> FriendManager.war(player(ctx), StringArgumentType.getString(ctx, "teamA"), StringArgumentType.getString(ctx, "teamB"), false))
+										.then(Commands.literal("lethal")
+												.executes(ctx -> FriendManager.war(player(ctx), StringArgumentType.getString(ctx, "teamA"), StringArgumentType.getString(ctx, "teamB"), true))))))
 				.then(Commands.literal("give")
 						.then(Commands.argument("who", StringArgumentType.word()).suggests(WHO)
 								.executes(ctx -> FriendManager.give(player(ctx), StringArgumentType.getString(ctx, "who")))))
@@ -98,11 +104,12 @@ public final class FriendCommands {
 	private static int help(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
 		ServerPlayer p = player(ctx);
 		FriendManager.info(p, "/friend spawn <name> [count] [skin username]");
-		FriendManager.info(p, "/friend <name|squad|all> <follow|come|stay|guard|wander|attack|mine|wood|stone|food|farm|craft|deliver|passive|aggressive|status|drop|dismiss>");
+		FriendManager.info(p, "/friend <name|squad|all> <follow|come|stay|guard|wander|attack|mine|wood|stone|food|farm|craft|deliver|brawl|deathmatch|ceasefire|passive|aggressive|status|drop|dismiss>");
 		FriendManager.info(p, "/friend build <who> wall [length] [height] | house | farm [count]");
 		FriendManager.info(p, "Jobs: mine, wood, stone, food, farm, craft, deliver. They craft their own tools from wood/cobble/iron/diamonds in their backpack.");
 		FriendManager.info(p, "/friend give <who>  - gives them the item in your hand");
 		FriendManager.info(p, "/friend skin <who> <username>");
+		FriendManager.info(p, "/friend <who> brawl | deathmatch | ceasefire,  /friend war <squadA> <squadB> [lethal]");
 		FriendManager.info(p, "/friend list");
 		FriendManager.info(p, "Or just type in chat: 'bob follow me', 'everyone mine', 'squad build a wall 20 5', 'all build 3 farms'.");
 		FriendManager.info(p, "Right-click a friend with an item to give it. Sneak + empty hand to take their gear back.");

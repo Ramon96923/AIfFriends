@@ -67,6 +67,12 @@ public class FriendEntity extends PathfinderMob {
 	private String group = "";
 	@Nullable BlockPos anchor;
 
+	/** Brawl team (0 = not fighting other friends). Friends on different teams attack each other. */
+	int brawlTeam;
+	boolean brawlLethal;
+	/** Owners with a brawl going on, so the winner is only announced once. */
+	private static final Set<UUID> ACTIVE_BRAWLS = new HashSet<>();
+
 	// work state (see FriendWork)
 	final List<ItemStack> pack = new ArrayList<>();
 	final Set<BlockPos> badBlocks = new HashSet<>();
@@ -178,12 +184,44 @@ public class FriendEntity extends PathfinderMob {
 	private boolean isFriendly(@Nullable Entity entity) {
 		if (entity == null) return false;
 		if (ownerId != null && entity.getUUID().equals(ownerId)) return true;
-		return entity instanceof FriendEntity other && other.ownerId != null && other.ownerId.equals(ownerId);
+		if (entity instanceof FriendEntity other && other.ownerId != null && other.ownerId.equals(ownerId)) {
+			return !isBrawlEnemy(other);
+		}
+		return false;
+	}
+
+	private boolean isBrawlEnemy(FriendEntity other) {
+		return this.brawlTeam > 0 && other.brawlTeam > 0 && this.brawlTeam != other.brawlTeam;
+	}
+
+	public boolean inBrawl() {
+		return brawlTeam > 0;
+	}
+
+	/** Joins a fight against the owner's other friends. */
+	public void joinBrawl(int team, boolean lethal) {
+		this.setMode(Mode.FOLLOW);
+		this.brawlTeam = team;
+		this.brawlLethal = lethal;
+		this.setTarget(null);
+		if (ownerId != null) ACTIVE_BRAWLS.add(ownerId);
+	}
+
+	public void leaveBrawl() {
+		if (this.brawlTeam == 0) return;
+		this.brawlTeam = 0;
+		LivingEntity t = this.getTarget();
+		if (t instanceof FriendEntity) this.setTarget(null);
+	}
+
+	public static void endBrawl(UUID owner) {
+		ACTIVE_BRAWLS.remove(owner);
 	}
 
 	// ---------------------------------------------------------------- orders
 
 	public void setMode(Mode mode) {
+		leaveBrawl();
 		FriendWork.releaseClaims(this);
 		this.badBlocks.clear();
 		this.delivering = false;
@@ -282,6 +320,7 @@ public class FriendEntity extends PathfinderMob {
 
 	public void setAggressive(boolean aggressive) {
 		this.aggressive = aggressive;
+		if (!aggressive) leaveBrawl();
 		if (!aggressive && this.getTarget() != null && this.getTarget() != this.getLastHurtByMob()) {
 			this.setTarget(null);
 		}
@@ -470,6 +509,10 @@ public class FriendEntity extends PathfinderMob {
 			return;
 		}
 		LivingEntity current = this.getTarget();
+		if (brawlTeam > 0) {
+			brawlTick(current);
+			return;
+		}
 		if (current != null && current.isAlive() && this.distanceToSqr(current) < 32 * 32) return;
 		this.setTarget(null);
 
@@ -517,10 +560,49 @@ public class FriendEntity extends PathfinderMob {
 		if (closest != null) this.setTarget(closest);
 	}
 
+	private void brawlTick(@Nullable LivingEntity current) {
+		if (current instanceof FriendEntity cf && cf.isAlive() && isBrawlEnemy(cf) && this.distanceToSqr(cf) < 48 * 48) return;
+		FriendEntity closest = null;
+		double best = Double.MAX_VALUE;
+		for (FriendEntity f : this.level().getEntitiesOfClass(FriendEntity.class, this.getBoundingBox().inflate(48),
+				o -> o != this && o.isAlive() && ownerId != null && ownerId.equals(o.ownerId) && isBrawlEnemy(o))) {
+			double d = this.distanceToSqr(f);
+			if (d < best) {
+				best = d;
+				closest = f;
+			}
+		}
+		if (closest != null) {
+			this.setTarget(closest);
+			return;
+		}
+		// Nobody left to fight: we won.
+		int team = brawlTeam;
+		this.brawlTeam = 0;
+		this.setTarget(null);
+		if (ownerId != null && ACTIVE_BRAWLS.remove(ownerId)) {
+			this.say("victory");
+			ServerPlayer owner = this.getOwner();
+			if (owner != null) {
+				owner.sendSystemMessage(Component.literal("[AI Friends] ").withStyle(ChatFormatting.GOLD)
+						.append(Component.literal(this.getFriendName() + (team > 1000 ? "" : "'s team") + " wins the fight!").withStyle(ChatFormatting.YELLOW)));
+			}
+		}
+	}
+
 	@Override
 	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
 		Entity attacker = source.getEntity();
 		if (isFriendly(attacker)) return false;
+		// Friendly brawl: tap out instead of dying.
+		if (brawlTeam > 0 && !brawlLethal && attacker instanceof FriendEntity && this.getHealth() - amount < 2.0f) {
+			this.brawlTeam = 0;
+			this.setTarget(null);
+			this.setHealth(Math.max(1.0f, this.getHealth() - amount * 0.5f));
+			this.say("tap_out");
+			if (attacker instanceof FriendEntity winner) winner.setTarget(null);
+			return false;
+		}
 		boolean hurt = super.hurtServer(level, source, amount);
 		if (hurt) {
 			if (attacker instanceof LivingEntity living && !isFriendly(living) && living.isAlive()) {

@@ -1,0 +1,11 @@
+Compiled from "DefaultPlayerSkin.java"
+public class net.minecraft.client.resources.DefaultPlayerSkin {
+  private static final net.minecraft.world.entity.player.PlayerSkin[] DEFAULT_SKINS;
+  public net.minecraft.client.resources.DefaultPlayerSkin();
+  public static net.minecraft.resources.Identifier getDefaultTexture();
+  public static net.minecraft.world.entity.player.PlayerSkin getDefaultSkin();
+  public static net.minecraft.world.entity.player.PlayerSkin get(java.util.UUID);
+  public static net.minecraft.world.entity.player.PlayerSkin get(com.mojang.authlib.GameProfile);
+  private static net.minecraft.world.entity.player.PlayerSkin create(java.lang.String, net.minecraft.world.entity.player.PlayerModelType);
+  static {};
+}

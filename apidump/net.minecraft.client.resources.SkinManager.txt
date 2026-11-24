@@ -1,0 +1,21 @@
+Compiled from "SkinManager.java"
+public class net.minecraft.client.resources.SkinManager {
+  private static final org.slf4j.Logger LOGGER;
+  private final net.minecraft.server.Services services;
+  private final net.minecraft.client.renderer.texture.SkinTextureDownloader skinTextureDownloader;
+  private final com.google.common.cache.LoadingCache<net.minecraft.client.resources.SkinManager$CacheKey, java.util.concurrent.CompletableFuture<java.util.Optional<net.minecraft.world.entity.player.PlayerSkin>>> skinCache;
+  private final net.minecraft.client.resources.SkinManager$TextureCache skinTextures;
+  private final net.minecraft.client.resources.SkinManager$TextureCache capeTextures;
+  private final net.minecraft.client.resources.SkinManager$TextureCache elytraTextures;
+  public net.minecraft.client.resources.SkinManager(java.nio.file.Path, net.minecraft.server.Services, net.minecraft.client.renderer.texture.SkinTextureDownloader, java.util.concurrent.Executor);
+  public java.util.function.Supplier<net.minecraft.world.entity.player.PlayerSkin> createLookup(com.mojang.authlib.GameProfile, boolean);
+  public java.util.concurrent.CompletableFuture<java.util.Optional<net.minecraft.world.entity.player.PlayerSkin>> get(com.mojang.authlib.GameProfile);
+  private java.util.concurrent.CompletableFuture<net.minecraft.world.entity.player.PlayerSkin> registerTextures(java.util.UUID, com.mojang.authlib.minecraft.MinecraftProfileTextures);
+  private static net.minecraft.world.entity.player.PlayerSkin lambda$registerTextures$0(java.util.concurrent.CompletableFuture, java.util.concurrent.CompletableFuture, java.util.concurrent.CompletableFuture, net.minecraft.world.entity.player.PlayerModelType, com.mojang.authlib.minecraft.MinecraftProfileTextures, java.lang.Void);
+  private static net.minecraft.world.entity.player.PlayerSkin lambda$createLookup$3(java.util.concurrent.CompletableFuture, boolean, net.minecraft.world.entity.player.PlayerSkin);
+  private static boolean lambda$createLookup$4(boolean, net.minecraft.world.entity.player.PlayerSkin);
+  private static net.minecraft.world.entity.player.PlayerSkin lambda$createLookup$2(net.minecraft.world.entity.player.PlayerSkin);
+  private static boolean lambda$createLookup$1(boolean, net.minecraft.world.entity.player.PlayerSkin);
+  private static net.minecraft.world.entity.player.PlayerSkin lambda$createLookup$0(net.minecraft.world.entity.player.PlayerSkin);
+  static {};
+}

@@ -22,6 +22,14 @@ jobs:
           chmod +x ./gradlew
           set -o pipefail
           ./gradlew build --no-configuration-cache 2>&1 | tee build.log
+      - name: smoke test (boot a server with the mod)
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          mkdir -p run && echo "eula=true" > run/eula.txt
+          printf 'online-mode=false\nlevel-type=minecraft\\:flat\n' > run/server.properties
+          ( sleep 100; echo "summon aifriends:friend 0 -55 0"; sleep 15; echo "save-all"; sleep 5; echo "stop" ) | timeout 300 ./gradlew runServer --no-configuration-cache --console=plain > smoke.log 2>&1 || true
+          grep -E "Done \(|Summoned|Exception|ERROR|aifriends" smoke.log | head -60 || true
       - name: api dump (for development)
         if: always()
         run: bash .github/apidump.sh || true
@@ -35,7 +43,7 @@ jobs:
         if: always()
         run: |
           mkdir -p /tmp/out
-          cp build.log /tmp/out/ 2>/dev/null || true
+          cp build.log smoke.log /tmp/out/ 2>/dev/null || true
           cp -r apidump /tmp/out/ 2>/dev/null || true
           cp build/libs/aifriends-*.jar /tmp/out/ 2>/dev/null || true
           rm -f /tmp/out/*-sources.jar

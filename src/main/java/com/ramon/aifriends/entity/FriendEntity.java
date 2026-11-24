@@ -37,6 +37,7 @@ import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -244,7 +245,7 @@ public class FriendEntity extends PathfinderMob {
 
 	private static void returnToOwner(ServerPlayer owner, ItemStack stack) {
 		if (!owner.getInventory().add(stack)) {
-			owner.drop(stack, false);
+			owner.spawnAtLocation(owner.level(), stack);
 		}
 	}
 
@@ -354,7 +355,7 @@ public class FriendEntity extends PathfinderMob {
 		double range = mode == Mode.GUARD ? 16.0 : 12.0;
 		List<Mob> hostiles = this.level().getEntitiesOfClass(Mob.class, this.getBoundingBox().inflate(range), e ->
 				e.isAlive() && e instanceof Enemy && !(e instanceof NeutralMob)
-						&& (e.getType() != EntityType.CREEPER || e.getTarget() == this || (owner != null && e.getTarget() == owner))
+						&& (!(e instanceof Creeper) || e.getTarget() == this || (owner != null && e.getTarget() == owner))
 						&& this.hasLineOfSight(e));
 		Mob closest = null;
 		double best = Double.MAX_VALUE;
@@ -394,8 +395,8 @@ public class FriendEntity extends PathfinderMob {
 	}
 
 	@Override
-	public boolean isAlliedTo(Entity other) {
-		return isFriendly(other) || super.isAlliedTo(other);
+	protected boolean considersEntityAsAlly(Entity other) {
+		return isFriendly(other) || super.considersEntityAsAlly(other);
 	}
 
 	@Override

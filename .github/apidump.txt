@@ -35,3 +35,7 @@ UUIDUtil
 EntityType
 ClientAsset
 Minecraft
+ClientAsset\$Texture
+PlayerModelType
+EntityRendererProvider\$Context
+HumanoidModel

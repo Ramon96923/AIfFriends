@@ -2,16 +2,20 @@ package com.ramon.aifriends.client;
 
 import com.ramon.aifriends.entity.FriendEntity;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey;
 
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.ArmorModelSet;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.HumanoidMobRenderer;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
 
@@ -48,8 +52,21 @@ public class FriendRenderer extends HumanoidMobRenderer<FriendEntity, AvatarRend
 			state.setData(TEXTURE, fallback.body().texturePath());
 			state.setData(SLIM, fallback.model() == net.minecraft.world.entity.player.PlayerModelType.SLIM);
 		}
+		state.skin = DefaultPlayerSkin.get(entity.getUUID());
+		state.showHat = true;
+		state.showJacket = true;
+		state.showLeftPants = true;
+		state.showRightPants = true;
+		state.showLeftSleeve = true;
+		state.showRightSleeve = true;
+		state.showCape = false;
+	}
+
+	@Override
+	public void submit(AvatarRenderState state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
 		// Swap arm thickness to match the skin.
 		this.model = Boolean.TRUE.equals(state.getData(SLIM)) ? slimModel : wideModel;
+		super.submit(state, poseStack, collector, camera);
 	}
 
 	@Override

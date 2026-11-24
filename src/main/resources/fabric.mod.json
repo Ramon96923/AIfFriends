@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"id": "aifriends",
+	"version": "${version}",
+	"name": "AI Friends",
+	"description": "Spawn an army of player-skinned companions that follow your commands, use the gear you give them, and talk back in chat.",
+	"authors": ["Ramon96923"],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["com.ramon.aifriends.AIFriends"],
+		"client": ["com.ramon.aifriends.client.AIFriendsClient"]
+	},
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

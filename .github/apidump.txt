@@ -39,3 +39,10 @@ ClientAsset\$Texture
 PlayerModelType
 EntityRendererProvider\$Context
 HumanoidModel
+Block
+BlockItem
+CropBlock
+ItemStack
+BlockTags
+BlockBehaviour\$BlockStateBase
+Direction

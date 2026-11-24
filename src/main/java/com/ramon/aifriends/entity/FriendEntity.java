@@ -1,6 +1,10 @@
 package com.ramon.aifriends.entity;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +45,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -52,13 +57,29 @@ public class FriendEntity extends PathfinderMob {
 	/** Last time (game time) any friend of a given owner said something unprompted, so armies don't spam chat. */
 	private static final Map<UUID, Long> LAST_CHATTER = new HashMap<>();
 
-	public enum Mode { FOLLOW, STAY, GUARD, WANDER }
+	public enum Mode { FOLLOW, STAY, GUARD, WANDER, MINE, BUILD, FARM }
+
+	public static final int PACK_SLOTS = 27;
 
 	private @Nullable UUID ownerId;
 	private Mode mode = Mode.FOLLOW;
 	private boolean aggressive = true;
 	private String group = "";
-	private @Nullable BlockPos anchor;
+	@Nullable BlockPos anchor;
+
+	// work state (see FriendWork)
+	final List<ItemStack> pack = new ArrayList<>();
+	final Set<BlockPos> badBlocks = new HashSet<>();
+	@Nullable BlockPos workTarget;
+	@Nullable BlockPos breakPos;
+	int breakProgress;
+	int stuckTicks;
+	int navRecalc;
+	double bestDist = Double.MAX_VALUE;
+	int lastNeedTick = -10000;
+	boolean delivering;
+	int farmRadius = 8;
+	BuildJob.@Nullable Task buildTask;
 	private @Nullable LivingEntity forcedTarget;
 	private @Nullable LivingEntity trackedTarget;
 	private int hurtChatCooldown;
@@ -93,6 +114,7 @@ public class FriendEntity extends PathfinderMob {
 	protected void registerGoals() {
 		this.goalSelector.addGoal(0, new FloatGoal(this));
 		this.goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.25, true));
+		this.goalSelector.addGoal(2, new WorkGoal(this));
 		this.goalSelector.addGoal(2, new FollowOwnerGoal(this));
 		this.goalSelector.addGoal(2, new ReturnToAnchorGoal(this));
 		this.goalSelector.addGoal(5, new WanderGoal(this));
@@ -134,6 +156,10 @@ public class FriendEntity extends PathfinderMob {
 		return mode;
 	}
 
+	public boolean isWorking() {
+		return mode == Mode.MINE || mode == Mode.BUILD || mode == Mode.FARM;
+	}
+
 	public boolean isAggressive() {
 		return aggressive;
 	}
@@ -157,6 +183,9 @@ public class FriendEntity extends PathfinderMob {
 	// ---------------------------------------------------------------- orders
 
 	public void setMode(Mode mode) {
+		FriendWork.releaseClaims(this);
+		this.badBlocks.clear();
+		this.delivering = false;
 		this.mode = mode;
 		this.forcedTarget = null;
 		if (mode == Mode.STAY || mode == Mode.GUARD) {
@@ -168,6 +197,79 @@ public class FriendEntity extends PathfinderMob {
 			this.setTarget(null);
 			this.getNavigation().stop();
 		}
+	}
+
+	public void startFarming(BlockPos center, int radius) {
+		this.setMode(Mode.FARM);
+		this.anchor = center.immutable();
+		this.farmRadius = radius;
+	}
+
+	public void deliver() {
+		this.delivering = true;
+	}
+
+	public void cleanup() {
+		FriendWork.releaseClaims(this);
+	}
+
+	// ---------------------------------------------------------------- backpack
+
+	/** Adds to the backpack, returns what didn't fit. */
+	public ItemStack addToPack(ItemStack stack) {
+		ItemStack rest = stack.copy();
+		for (ItemStack s : pack) {
+			if (rest.isEmpty()) break;
+			if (ItemStack.isSameItemSameComponents(s, rest) && s.getCount() < s.getMaxStackSize()) {
+				int move = Math.min(rest.getCount(), s.getMaxStackSize() - s.getCount());
+				s.grow(move);
+				rest.shrink(move);
+			}
+		}
+		while (!rest.isEmpty() && pack.size() < PACK_SLOTS) {
+			pack.add(rest.split(rest.getMaxStackSize()));
+		}
+		return rest;
+	}
+
+	public boolean packFull() {
+		if (pack.size() < PACK_SLOTS) return false;
+		for (ItemStack s : pack) if (s.getCount() < s.getMaxStackSize()) return false;
+		return true;
+	}
+
+	public int packCount() {
+		int n = 0;
+		for (ItemStack s : pack) n += s.getCount();
+		return n;
+	}
+
+	boolean hasInPack(Predicate<ItemStack> filter) {
+		for (ItemStack s : pack) if (!s.isEmpty() && filter.test(s)) return true;
+		return false;
+	}
+
+	/** Takes one matching item from the backpack (or the off hand), or EMPTY. */
+	ItemStack takeFromPack(Predicate<ItemStack> filter) {
+		for (int i = 0; i < pack.size(); i++) {
+			ItemStack s = pack.get(i);
+			if (!s.isEmpty() && filter.test(s)) {
+				ItemStack one = s.split(1);
+				if (s.isEmpty()) pack.remove(i);
+				return one;
+			}
+		}
+		ItemStack off = this.getOffhandItem();
+		if (!off.isEmpty() && filter.test(off)) return off.split(1);
+		return ItemStack.EMPTY;
+	}
+
+	/** Gives the owner everything in the backpack. Returns false if it was empty. */
+	public boolean handOverPack(ServerPlayer owner) {
+		if (pack.isEmpty()) return false;
+		for (ItemStack s : pack) returnToOwner(owner, s);
+		pack.clear();
+		return true;
 	}
 
 	public void setAggressive(boolean aggressive) {
@@ -198,7 +300,16 @@ public class FriendEntity extends PathfinderMob {
 	public String giveItem(ServerPlayer owner, ItemStack stack) {
 		EquipmentSlot slot = this.getEquipmentSlotForItem(stack);
 		String event = "item";
-		if (slot.isArmor()) {
+		boolean weaponOrTool = stack.has(DataComponents.WEAPON) || stack.has(DataComponents.TOOL);
+		boolean offhandGear = stack.is(Items.SHIELD) || stack.is(Items.TOTEM_OF_UNDYING);
+		if (!slot.isArmor() && !weaponOrTool && !offhandGear) {
+			ItemStack left = this.addToPack(stack);
+			if (!left.isEmpty()) returnToOwner(owner, left);
+			return left.isEmpty() ? "item_pack" : "pack_full";
+		}
+		if (offhandGear) {
+			slot = EquipmentSlot.OFFHAND;
+		} else if (slot.isArmor()) {
 			event = "item_armor";
 		} else {
 			boolean weapon = stack.has(DataComponents.WEAPON) || stack.has(DataComponents.TOOL);
@@ -220,7 +331,7 @@ public class FriendEntity extends PathfinderMob {
 
 	/** Hands every equipped item back to the owner. */
 	public boolean returnAllItems(ServerPlayer owner) {
-		boolean any = false;
+		boolean any = handOverPack(owner);
 		for (EquipmentSlot slot : EquipmentSlot.values()) {
 			ItemStack stack = this.getItemBySlot(slot);
 			if (!stack.isEmpty()) {
@@ -234,6 +345,8 @@ public class FriendEntity extends PathfinderMob {
 
 	public void dropAllItems() {
 		if (!(this.level() instanceof ServerLevel serverLevel)) return;
+		for (ItemStack s : pack) this.spawnAtLocation(serverLevel, s);
+		pack.clear();
 		for (EquipmentSlot slot : EquipmentSlot.values()) {
 			ItemStack stack = this.getItemBySlot(slot);
 			if (!stack.isEmpty()) {
@@ -256,6 +369,14 @@ public class FriendEntity extends PathfinderMob {
 		ServerPlayer owner = this.getOwner();
 		if (owner == null) return;
 		String line = FriendChat.line(event, this.getRandom(), owner.getName().getString(), this.getFriendName(), (int) Math.ceil(this.getHealth()));
+		owner.sendSystemMessage(Component.literal("<" + this.getFriendName() + "> ").withStyle(ChatFormatting.AQUA)
+				.append(Component.literal(line).withStyle(ChatFormatting.WHITE)));
+	}
+
+	public void sayJob(String event, String job) {
+		ServerPlayer owner = this.getOwner();
+		if (owner == null) return;
+		String line = FriendChat.line(event, this.getRandom(), owner.getName().getString(), this.getFriendName(), (int) Math.ceil(this.getHealth()), job);
 		owner.sendSystemMessage(Component.literal("<" + this.getFriendName() + "> ").withStyle(ChatFormatting.AQUA)
 				.append(Component.literal(line).withStyle(ChatFormatting.WHITE)));
 	}
@@ -352,7 +473,7 @@ public class FriendEntity extends PathfinderMob {
 		if (!aggressive || mode == Mode.WANDER && owner == null) return;
 
 		// Look for nearby monsters (not neutral mobs, not creepers unless they're about to blow us up).
-		double range = mode == Mode.GUARD ? 16.0 : 12.0;
+		double range = mode == Mode.GUARD ? 16.0 : (isWorking() ? 6.0 : 12.0);
 		List<Mob> hostiles = this.level().getEntitiesOfClass(Mob.class, this.getBoundingBox().inflate(range), e ->
 				e.isAlive() && e instanceof Enemy && !(e instanceof NeutralMob)
 						&& (!(e instanceof Creeper) || e.getTarget() == this || (owner != null && e.getTarget() == owner))
@@ -401,7 +522,14 @@ public class FriendEntity extends PathfinderMob {
 
 	@Override
 	public void die(DamageSource source) {
-		if (!this.level().isClientSide()) this.say("death");
+		if (!this.level().isClientSide()) {
+			this.say("death");
+			FriendWork.releaseClaims(this);
+			if (this.level() instanceof ServerLevel serverLevel) {
+				for (ItemStack s : pack) this.spawnAtLocation(serverLevel, s);
+				pack.clear();
+			}
+		}
 		super.die(source);
 	}
 
@@ -455,6 +583,10 @@ public class FriendEntity extends PathfinderMob {
 		output.putString("FriendGroup", group);
 		output.putString("FriendSkin", getSkinName());
 		if (anchor != null) output.store("FriendAnchor", BlockPos.CODEC, anchor);
+		output.putInt("FriendFarmRadius", farmRadius);
+		List<ItemStack> saved = new ArrayList<>();
+		for (ItemStack s : pack) if (!s.isEmpty()) saved.add(s);
+		output.store("FriendPack", ItemStack.CODEC.listOf(), saved);
 	}
 
 	@Override
@@ -471,6 +603,10 @@ public class FriendEntity extends PathfinderMob {
 		this.group = input.getStringOr("FriendGroup", "");
 		this.setSkinName(input.getStringOr("FriendSkin", ""));
 		this.anchor = input.read("FriendAnchor", BlockPos.CODEC).orElse(null);
+		this.farmRadius = input.getIntOr("FriendFarmRadius", 8);
+		this.pack.clear();
+		input.read("FriendPack", ItemStack.CODEC.listOf()).ifPresent(this.pack::addAll);
+		if (this.mode == Mode.BUILD) this.mode = Mode.FOLLOW; // build jobs don't survive a restart
 	}
 
 	// ---------------------------------------------------------------- goals
@@ -491,7 +627,7 @@ public class FriendEntity extends PathfinderMob {
 
 		@Override
 		public boolean canUse() {
-			if (friend.mode != Mode.FOLLOW || friend.getTarget() != null) return false;
+			if (friend.mode != Mode.FOLLOW || friend.delivering || friend.getTarget() != null) return false;
 			ServerPlayer owner = owner();
 			return owner != null && friend.distanceToSqr(owner) > 6 * 6;
 		}
@@ -525,6 +661,43 @@ public class FriendEntity extends PathfinderMob {
 				if (friend.getRandom().nextInt(4) == 0) friend.chatter("teleport", 200);
 			} else {
 				friend.getNavigation().moveTo(owner, friend.distanceToSqr(owner) > 12 * 12 ? 1.4 : 1.1);
+			}
+		}
+	}
+
+	static class WorkGoal extends Goal {
+		private final FriendEntity friend;
+
+		WorkGoal(FriendEntity friend) {
+			this.friend = friend;
+			this.setFlags(EnumSet.of(Goal.Flag.MOVE, Goal.Flag.LOOK));
+		}
+
+		@Override
+		public boolean canUse() {
+			return (friend.isWorking() || friend.delivering) && friend.getTarget() == null;
+		}
+
+		@Override
+		public boolean requiresUpdateEveryTick() {
+			return true;
+		}
+
+		@Override
+		public void stop() {
+			friend.getNavigation().stop();
+			FriendWork.stopBreakingPublic(friend);
+		}
+
+		@Override
+		public void tick() {
+			if (!(friend.level() instanceof ServerLevel level)) return;
+			if (FriendWork.tickDeliver(friend, level)) return;
+			switch (friend.mode) {
+				case MINE -> FriendWork.tickMine(friend, level);
+				case BUILD -> FriendWork.tickBuild(friend, level);
+				case FARM -> FriendWork.tickFarm(friend, level);
+				default -> { }
 			}
 		}
 	}

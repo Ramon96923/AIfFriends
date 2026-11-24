@@ -30,6 +30,9 @@ public final class FriendChatListener {
 			Map.entry("aggressive", "aggressive"), Map.entry("hunt", "aggressive"), Map.entry("hostile", "aggressive"), Map.entry("weapons", "aggressive"),
 			Map.entry("status", "status"), Map.entry("report", "status"), Map.entry("health", "status"), Map.entry("hp", "status"),
 			Map.entry("drop", "drop"),
+			Map.entry("mine", "mine"), Map.entry("dig", "mine"), Map.entry("mining", "mine"), Map.entry("ores", "mine"),
+			Map.entry("farm", "farm"), Map.entry("harvest", "farm"), Map.entry("farming", "farm"), Map.entry("crops", "farm"),
+			Map.entry("deliver", "deliver"), Map.entry("bring", "deliver"), Map.entry("loot", "deliver"),
 			Map.entry("dismiss", "dismiss"), Map.entry("leave", "dismiss"), Map.entry("dismissed", "dismiss")
 	);
 
@@ -73,6 +76,27 @@ public final class FriendChatListener {
 			}
 		}
 		if (who == null) return;
+
+		// Building: "squad build a wall 20 5", "everyone build 3 farms", "bob build house".
+		boolean wantsBuild = false;
+		String structure = null;
+		int[] numbers = new int[2];
+		int found = 0;
+		for (int i = 0; i < words.length; i++) {
+			if (i == whoIndex) continue;
+			String w = words[i];
+			if (w.equals("build") || w.equals("make") || w.equals("construct")) wantsBuild = true;
+			if (structure == null && List.of("wall", "walls", "house", "hut", "home", "base", "farm", "farms", "field", "fields").contains(w)) structure = w;
+			if (found < 2 && w.matches("\\d{1,3}")) numbers[found++] = Integer.parseInt(w);
+		}
+		if (wantsBuild && structure != null) {
+			FriendManager.build(sender, who, structure, numbers[0], numbers[1]);
+			return;
+		}
+		if (wantsBuild) {
+			FriendManager.info(sender, "Build what? Try: wall [length] [height], house, or farm [count]");
+			return;
+		}
 
 		// Look for an order keyword anywhere in the message (excluding the name itself).
 		String order = null;

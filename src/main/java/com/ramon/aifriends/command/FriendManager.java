@@ -7,11 +7,14 @@ import java.util.Locale;
 import java.util.Set;
 
 import com.ramon.aifriends.AIFriends;
+import com.ramon.aifriends.entity.BuildJob;
 import com.ramon.aifriends.entity.FriendEntity;
 
 import org.jspecify.annotations.Nullable;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,7 +30,9 @@ public final class FriendManager {
 
 	public static final Set<String> ALL_WORDS = Set.of("all", "everyone", "everybody", "squad", "friends", "army", "guys", "team", "yall", "y'all", "troops", "boys", "gang");
 
-	public static final List<String> ORDERS = List.of("follow", "come", "stay", "guard", "wander", "attack", "passive", "aggressive", "status", "drop", "dismiss");
+	public static final List<String> ORDERS = List.of("follow", "come", "stay", "guard", "wander", "attack", "mine", "farm", "deliver", "passive", "aggressive", "status", "drop", "dismiss");
+
+	public static final List<String> STRUCTURES = List.of("wall", "house", "farm");
 
 	public static final int MAX_SPAWN = 50;
 
@@ -111,6 +116,18 @@ public final class FriendManager {
 				friends.forEach(f -> f.setMode(FriendEntity.Mode.WANDER));
 				replies(owner, friends, "wander");
 			}
+			case "mine" -> {
+				friends.forEach(f -> f.setMode(FriendEntity.Mode.MINE));
+				replies(owner, friends, "mine");
+			}
+			case "farm" -> {
+				friends.forEach(f -> f.startFarming(owner.blockPosition(), 10));
+				replies(owner, friends, "farm");
+			}
+			case "deliver" -> {
+				friends.forEach(FriendEntity::deliver);
+				replies(owner, friends, "come");
+			}
 			case "passive" -> {
 				friends.forEach(f -> f.setAggressive(false));
 				replies(owner, friends, "passive");
@@ -132,7 +149,9 @@ public final class FriendManager {
 				for (FriendEntity f : friends.subList(0, Math.min(friends.size(), 8))) {
 					f.say("status");
 				}
-				info(owner, friends.size() + " friend(s). Mode: " + friends.get(0).getMode().name().toLowerCase(Locale.ROOT)
+				int carried = 0;
+				for (FriendEntity f : friends) carried += f.packCount();
+				info(owner, friends.size() + " friend(s), carrying " + carried + " items. Mode: " + friends.get(0).getMode().name().toLowerCase(Locale.ROOT)
 						+ (friends.get(0).isAggressive() ? ", aggressive" : ", passive"));
 			}
 			case "drop" -> {
@@ -142,6 +161,7 @@ public final class FriendManager {
 			case "dismiss" -> {
 				replies(owner, friends, "dismiss");
 				friends.forEach(f -> {
+					f.cleanup();
 					f.dropAllItems();
 					f.discard();
 				});
@@ -151,6 +171,49 @@ public final class FriendManager {
 				return 0;
 			}
 		}
+		return friends.size();
+	}
+
+	public static final int MAX_WALL_LENGTH = 64, MAX_WALL_HEIGHT = 16, MAX_FARMS = 8;
+
+	/** Starts a shared build job. a = wall length / farm count, b = wall height. 0 means default. */
+	public static int build(ServerPlayer owner, String who, String structure, int a, int b) {
+		List<FriendEntity> friends = select(owner, who);
+		if (friends.isEmpty()) {
+			info(owner, "You don't have any friends called '" + who + "'.");
+			return 0;
+		}
+		Direction facing = owner.getDirection();
+		BlockPos feet = owner.blockPosition();
+		BuildJob job;
+		String label;
+		switch (structure.toLowerCase(Locale.ROOT)) {
+			case "wall", "walls" -> {
+				int length = a > 0 ? Math.min(a, MAX_WALL_LENGTH) : 7;
+				int height = b > 0 ? Math.min(b, MAX_WALL_HEIGHT) : 3;
+				job = BuildJob.wall(feet, facing, length, height);
+				label = "wall " + length + " long and " + height + " high";
+			}
+			case "house", "hut", "home", "base" -> {
+				job = BuildJob.house(feet, facing);
+				label = "house";
+			}
+			case "farm", "farms", "field", "fields" -> {
+				int count = a > 0 ? Math.min(a, MAX_FARMS) : 1;
+				job = BuildJob.farms(feet, facing, count);
+				label = count == 1 ? "farm" : count + " farms";
+			}
+			default -> {
+				info(owner, "I can build: wall [length] [height], house, farm [count]");
+				return 0;
+			}
+		}
+		BuildJob.start(owner.getUUID(), job);
+		friends.forEach(f -> f.setMode(FriendEntity.Mode.BUILD));
+		int shown = Math.min(2, friends.size());
+		for (int i = 0; i < shown; i++) friends.get(i).sayJob("build", label);
+		info(owner, friends.size() + " friend(s) building a " + label + " (" + job.size() + " blocks)"
+				+ (owner.isCreative() ? "." : ". They'll use blocks from their backpacks - give them some!"));
 		return friends.size();
 	}
 

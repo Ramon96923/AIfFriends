@@ -42,12 +42,28 @@ public final class FriendChat {
 			Map.entry("confused", List.of("Huh?", "Sorry, didn't get that.", "Come again?", "I only know commands like follow, stay, guard or attack.")),
 			Map.entry("skin", List.of("New look, who dis?", "Fresh fit!", "Do I look different?")),
 			Map.entry("idle", List.of("Nice day, huh?", "Got any tasks for me?", "I'm bored. Can we fight something?", "Love the scenery around here.", "You're a great leader, {owner}.", "Anyone else hungry?", "I heard something over there...")),
+			Map.entry("mine", List.of("Time to dig!", "I'll find some ores.", "Pickaxe ready!", "Diamonds, here I come.")),
+			Map.entry("no_ores", List.of("I can't find any ores around here.", "No ores nearby. Take me somewhere else?", "Nothing to mine here, boss.")),
+			Map.entry("need_pickaxe", List.of("I need a better pickaxe for this ore.", "My tool can't mine that. Got a pickaxe?", "Can't break that without the right pickaxe.")),
+			Map.entry("build", List.of("Let's build it!", "Construction time!", "I'll get started.", "One {job}, coming up!")),
+			Map.entry("build_done", List.of("Done building!", "Finished! Looks great, right?", "All built, boss!")),
+			Map.entry("need_blocks", List.of("I'm out of blocks! Give me some.", "Need more blocks to keep building.", "Can someone pass me some blocks?")),
+			Map.entry("need_seeds", List.of("I don't have any seeds to plant.", "Give me seeds and I'll plant them.")),
+			Map.entry("farm", List.of("I'll take care of the crops.", "Farming time!", "Harvest and replant, got it.")),
+			Map.entry("deliver", List.of("Here's everything I collected!", "Special delivery!", "Brought you the goods.")),
+			Map.entry("deliver_nothing", List.of("My backpack's empty.", "I don't have anything for you yet.")),
+			Map.entry("pack_full", List.of("My backpack is full! Bringing it to you.", "Can't carry any more, coming back.")),
+			Map.entry("item_pack", List.of("Into the backpack it goes.", "I'll hold onto that.", "Got it, thanks!")),
 			Map.entry("teleport", List.of("Wait up!", "Hey, don't leave me behind!", "Caught up!"))
 	);
 
 	public static String line(String event, RandomSource random, String owner, String name, int hp) {
+		return line(event, random, owner, name, hp, "");
+	}
+
+	public static String line(String event, RandomSource random, String owner, String name, int hp, String job) {
 		List<String> pool = LINES.getOrDefault(event, LINES.get("confused"));
 		String line = pool.get(random.nextInt(pool.size()));
-		return line.replace("{owner}", owner).replace("{name}", name).replace("{hp}", Integer.toString(hp));
+		return line.replace("{owner}", owner).replace("{name}", name).replace("{hp}", Integer.toString(hp)).replace("{job}", job.isEmpty() ? "build" : job);
 	}
 }
